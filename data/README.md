@@ -7,21 +7,25 @@ Planned layout:
 
 ```text
 data/
-├── manifests/
-│   ├── train.jsonl
-│   ├── validation.jsonl
-│   └── test.jsonl
-├── eval/
-│   ├── routing.jsonl
-│   ├── tool_calls.jsonl
-│   ├── missing_fields.jsonl
-│   ├── multi_turn.jsonl
-│   └── acoustic.jsonl
+├── slm/
+│   ├── manifests/{train,validation,test}.jsonl
+│   └── eval/{routing,tool_calls,missing_fields,multi_turn,acoustic}.jsonl
+├── vad/
+│   ├── manifests/{validation,test}.jsonl
+│   └── sessions/                # Ignored continuous audio + speech boundaries
+├── harness/
+│   └── eval/                    # Reviewed multi-turn scenario manifests
+├── execute/
+│   └── eval/                    # State/safety scenario fixtures
+├── e2e/
+│   └── eval/                    # Full continuous-session expectations
 ├── samples/                     # Small redistributable smoke-test audio only
 ├── raw/                         # Ignored; external recordings
 └── generated/                   # Ignored; generated text and speech
 ```
 
-Each example must retain provenance, speaker/group identity, transcript,
-audio path, route, expected tool call, and generation/augmentation metadata.
-Splits must be speaker- and semantic-template-safe to prevent leakage.
+SLM examples retain provenance, speaker/group identity, transcript, audio
+path, route, expected tool call and generation/augmentation metadata. VAD
+examples additionally retain continuous-session speech boundaries, acoustic
+condition, robot playback intervals and endpoint annotations. Splits must be
+speaker-, session- and semantic-template-safe to prevent leakage.

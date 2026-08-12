@@ -1,1 +1,1 @@
-"""Placeholder for the future agent conversation harness."""
+"""Agent conversation loop, turn orchestration and routing coordination."""

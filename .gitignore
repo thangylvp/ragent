@@ -20,6 +20,8 @@ data/raw/
 data/generated/
 data/cache/
 data/audio/
+demo/captures/
+demo/logs/
 *.wav
 *.flac
 *.mp3

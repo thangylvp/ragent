@@ -14,6 +14,7 @@ module with tests, rather than by copying the entire working tree.
 | `src/checkpoint/` and `tools/export_checkpoint.py` | `checkpoint/` and `scripts/` | Reuse standalone Hugging Face export and compatibility audit |
 | `src/eval/command/` | `src/slm/eval/` | Generalize scoring to route/tool/argument/missing-slot metrics |
 | `src/car/` | none | Do not copy; replace with a versioned robot contract |
+| `demo/` | `demo/` | Reuse the lightweight FastAPI/vanilla-JS pattern and model adapters; replace push-to-talk-only capture, car state and car execution with streaming VAD and robot component interfaces |
 | car-generated data and checkpoints | none | Do not copy or mix into robot training |
 
 ## External inputs
@@ -31,9 +32,12 @@ module with tests, rather than by copying the entire working tree.
 
 1. Freeze and version the robot tool catalog with the execution team.
 2. Implement output-contract validation and exact-match scoring.
-3. Migrate generic data preparation and audit existing robot recordings.
-4. Generate balanced text data, including missing-slot and non-tool cases.
-5. Generate/augment speech and create leakage-safe train/validation/test sets.
-6. Migrate the Qwen3-ASR training and checkpoint-export path.
-7. Train in stages: ASR adaptation, routing/tool alignment, then speech SFT.
-8. Evaluate offline, export standalone checkpoint and benchmark edge serving.
+3. Implement and evaluate the first-class streaming VAD contract.
+4. Build the mock end-to-end demo against the same component interfaces.
+5. Migrate generic data preparation and audit existing robot recordings.
+6. Generate balanced text data, including missing-slot and non-tool cases.
+7. Generate/augment speech and create leakage-safe train/validation/test sets.
+8. Migrate the Qwen3-ASR training and checkpoint-export path.
+9. Train in stages: ASR adaptation, routing/tool alignment, then speech SFT.
+10. Evaluate offline, export a standalone checkpoint and connect the real
+    model to the end-to-end demo before edge benchmarking.

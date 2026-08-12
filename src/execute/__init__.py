@@ -1,1 +1,1 @@
-"""Placeholder for the future robot execution layer."""
+"""Robot state, validation, safety policy and action execution."""
