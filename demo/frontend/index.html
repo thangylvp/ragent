@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VAD → Car STC Webtest</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">COMPONENT WEBTEST · VERSION 0.1</p>
+      <h1>Live VAD <span>→</span> Car Speech-to-Command</h1>
+      <p class="subtitle">Test automatic utterance cutting before the existing 33-tool STC model. Calls are displayed, never executed.</p>
+    </div>
+    <div id="modelBadge" class="badge"><i></i><span>Connecting…</span></div>
+  </header>
+
+  <main>
+    <section class="card listen-card">
+      <div class="section-head">
+        <div>
+          <p class="step">01 · LISTEN</p>
+          <h2>Voice activity detection</h2>
+        </div>
+        <span id="vadState" class="state idle">IDLE</span>
+      </div>
+
+      <div class="controls">
+        <label>
+          <span>VAD backend</span>
+          <select id="backend"></select>
+        </label>
+        <button id="start" class="primary">Start listening</button>
+        <button id="stop" class="secondary" disabled>Stop & discard</button>
+      </div>
+
+      <div class="meter-wrap">
+        <div class="meter-label"><span>Microphone level</span><strong id="levelText">−120 dBFS</strong></div>
+        <div class="meter"><i id="levelBar"></i></div>
+      </div>
+
+      <div class="metrics">
+        <div><span>Stream audio</span><strong id="audioTime">0.00 s</strong></div>
+        <div><span>Speech confidence</span><strong id="confidence">—</strong></div>
+        <div><span>VAD frame cost</span><strong id="frameCost">—</strong></div>
+        <div><span>Captured utterance</span><strong id="utteranceTime">—</strong></div>
+      </div>
+
+      <p id="status" class="status">Choose a VAD, then start listening. Speech is sent only after server-side endpointing.</p>
+      <audio id="capture" controls hidden></audio>
+    </section>
+
+    <section class="card result-card">
+      <div class="section-head">
+        <div>
+          <p class="step">02 · PARSE</p>
+          <h2>Car model result</h2>
+        </div>
+        <span id="route" class="state neutral">WAITING</span>
+      </div>
+
+      <div id="emptyResult" class="empty">A completed VAD segment will be sent to the ASR-based car model with its original tool catalog.</div>
+      <div id="result" hidden>
+        <div id="transcriptBox" class="transcript" hidden>
+          <span>NON-TOOL TRANSCRIPT</span>
+          <p id="transcript"></p>
+        </div>
+        <div id="calls" class="calls"></div>
+        <div class="metrics compact">
+          <div><span>Finalized → result</span><strong id="e2eLatency">—</strong></div>
+          <div><span>Model latency</span><strong id="modelLatency">—</strong></div>
+          <div><span>Output tokens</span><strong id="outputTokens">—</strong></div>
+        </div>
+        <div class="breakdown">
+          <h3>Component timing</h3>
+          <dl id="timings"></dl>
+        </div>
+        <details>
+          <summary>Raw model output</summary>
+          <pre id="raw"></pre>
+        </details>
+      </div>
+    </section>
+
+    <section class="card trace-card">
+      <div class="section-head">
+        <div>
+          <p class="step">03 · INSPECT</p>
+          <h2>Event trace</h2>
+        </div>
+        <button id="clearTrace" class="text-button">Clear</button>
+      </div>
+      <ol id="trace" class="trace"></ol>
+    </section>
+
+    <section class="card catalog-card">
+      <details>
+        <summary>Bundled STC tool catalog (<span id="toolCount">0</span>)</summary>
+        <div id="tools" class="tools"></div>
+      </details>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

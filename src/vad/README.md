@@ -11,15 +11,20 @@ consume the same `VadEngine` interface and endpointing configuration.
 vad/
 ├── base.py          # Implemented: VadEngine protocol and event types
 ├── energy.py        # Implemented: adaptive energy baseline + segmenter
+├── live.py          # Implemented: live PCM adapters and utterance buffering
 ├── backends/        # Implemented: common offline adapters for five runtimes
 ├── stream.py        # Planned: transport validation/resampling boundary
 └── metrics.py       # Planned: corpus-level segmentation metrics
 ```
 
-The adapters cover FireRedVAD (PyTorch), OmniVAD-Kit (the FireRed model on
-ncnn), Silero VAD, WebRTC VAD and the energy baseline. They normalize a WAV
-file into timestamped `VadSegment` values for component comparison; they do
-not replace the streaming `VadEngine` contract used by the eventual robot.
+The offline adapters cover FireRedVAD (PyTorch), OmniVAD-Kit (the FireRed model
+on ncnn), Silero VAD, WebRTC VAD and the energy baseline. They normalize a WAV
+file into timestamped `VadSegment` values for component comparison.
+
+`live.py` exposes the same choices as stateful PCM sessions for the component
+webtest. It retains retroactive onset audio and normalizes detector-specific
+events into `VadEvent`. This is transport-neutral component plumbing, not the
+future harness's listening/TTS policy.
 
 ## Stream contract
 

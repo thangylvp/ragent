@@ -1,5 +1,9 @@
 # Robot end-to-end demo design
 
+> This remains the future robot integration design. The implemented version
+> 0.1 page is the narrower VAD→existing-car-model component test documented in
+> `demo/README.md`; it does not implement the harness or execution layer below.
+
 ## Purpose
 
 The demo is a human-operated integration test for the VAD, SLM, agent harness

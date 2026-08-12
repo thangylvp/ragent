@@ -14,7 +14,7 @@ module with tests, rather than by copying the entire working tree.
 | `src/checkpoint/` and `tools/export_checkpoint.py` | `checkpoint/` and `scripts/` | Deferred: reuse standalone Hugging Face export and compatibility audit |
 | `src/eval/command/` | `src/slm/eval/` | Deferred: generalize scoring to route/tool/argument/missing-slot metrics |
 | `src/car/` | none | Do not copy; replace with a versioned robot contract |
-| `demo/` | `demo/` | Reuse the lightweight FastAPI/vanilla-JS pattern and model adapters; replace push-to-talk-only capture, car state and car execution with streaming VAD and robot component interfaces |
+| `demo/` | `demo/` | First component webtest implemented: streaming VAD into the existing car model with no execution; robot integration remains deferred until the harness is designed |
 | car-generated data and checkpoints | none | Do not copy or mix into robot training |
 
 ## External inputs

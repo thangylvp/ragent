@@ -1,5 +1,6 @@
-# Frontend placeholder
+# Component webtest frontend
 
-The frontend will be buildless HTML/CSS/JavaScript. It captures fixed PCM
-frames with an `AudioWorklet`, displays audio levels and renders structured
-backend events. Canonical VAD decisions remain in `src/vad`.
+The buildless HTML/CSS/JavaScript page captures microphone audio with an
+`AudioWorklet`, resamples it to 16 kHz PCM16LE and sends fixed packets over a
+WebSocket. It displays levels and structured backend events, but canonical VAD
+decisions remain server-side in `src/vad`.

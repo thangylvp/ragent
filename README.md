@@ -19,7 +19,8 @@ not an agent and not an execution runtime.
 | VAD (`src/vad`) | Streaming speech detection, utterance buffering, endpointing and playback gating |
 | Agent harness (`src/harness`, placeholder) | Turn orchestration, conversation history, missing-field detection, follow-up questions, cloud forwarding, response/TTS loop |
 | Execution layer (`src/execute`, placeholder) | Schema validation, robot state, preconditions, safety policy, action execution and result reporting |
-| End-to-end web demo (`demo`, placeholder) | Streams microphone audio through the real component boundaries and visualizes routing, follow-up, execution and latency |
+| Component webtest (`demo`, implemented) | Streams microphone audio through selectable VADs, then displays the existing car STC model output without execution |
+| Future robot demo (`demo/docs/DESIGN.md`, design only) | Will compose the robot SLM, harness and execution contracts after they are defined |
 
 The SLM must not invent required values merely to make a call executable. If a
 required field is absent, it emits the selected tool with that field omitted;
@@ -27,8 +28,9 @@ the harness decides what to ask next.
 
 See [docs/architecture.md](docs/architecture.md) for the data flow and
 [docs/migration-map.md](docs/migration-map.md) for the planned reuse from
-`stc`. The end-to-end test surface is specified in
-[demo/docs/DESIGN.md](demo/docs/DESIGN.md).
+`stc`. The runnable component page is documented in
+[demo/README.md](demo/README.md); the future robot end-to-end surface remains
+a design in [demo/docs/DESIGN.md](demo/docs/DESIGN.md).
 
 ## Current status
 
@@ -39,8 +41,9 @@ catalog is agreed.
 
 VAD can now be compared independently through adapters for FireRedVAD,
 OmniVAD-Kit, Silero VAD, WebRTC VAD and the dependency-free energy baseline.
-The harness, execution layer and demo remain design placeholders; no
-conversation-loop behavior is assumed by these component implementations.
+The harness and execution layer remain design placeholders. A narrow webtest
+now exercises live VAD cuts against the existing car checkpoint, but it does
+not assume or implement robot conversation-loop behavior.
 
 ## Repository layout
 
@@ -49,7 +52,7 @@ robot-speech-to-action/
 ├── configs/                     # Data, training, evaluation and serving configs
 ├── contracts/                   # Versioned boundary contracts and robot tool catalog
 ├── data/                        # Manifest conventions; raw audio is external/ignored
-├── demo/                        # End-to-end robot web demo and streaming VAD test surface
+├── demo/                        # Runnable VAD→car-STC webtest; future robot demo design
 ├── docs/                        # Architecture, decisions and migration notes
 ├── scripts/                     # Thin CLI entry points (planned)
 ├── src/
