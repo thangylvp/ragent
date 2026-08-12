@@ -15,9 +15,9 @@ not an agent and not an execution runtime.
 
 | Component | Owns |
 | --- | --- |
-| Speech-to-action SLM (this repo) | Speech recognition, route selection, tool selection, argument extraction |
-| Agent harness (future repo/service) | Conversation history, missing-field detection, follow-up questions, cloud forwarding, response/TTS loop |
-| Execution layer (future repo/service) | Schema validation, robot state, preconditions, safety policy, action execution and result reporting |
+| Speech-to-action SLM (`src/slm`) | Speech recognition, route selection, tool selection, argument extraction |
+| Agent harness (`src/harness`, placeholder) | Conversation history, missing-field detection, follow-up questions, cloud forwarding, response/TTS loop |
+| Execution layer (`src/execute`, placeholder) | Schema validation, robot state, preconditions, safety policy, action execution and result reporting |
 
 The SLM must not invent required values merely to make a call executable. If a
 required field is absent, it emits the selected tool with that field omitted;
@@ -42,16 +42,19 @@ robot-speech-to-action/
 ├── data/                        # Manifest conventions; raw audio is external/ignored
 ├── docs/                        # Architecture, decisions and migration notes
 ├── scripts/                     # Thin CLI entry points (planned)
-├── src/robot_speech_to_action/
-│   ├── checkpoint/              # Standalone checkpoint export/audit
-│   ├── contracts/               # Output and tool-schema validation
-│   ├── data/                    # Manifest preparation and audio transforms
-│   ├── data_gen/                # Text and speech data generation
-│   ├── engine/                  # Training loop and hooks
-│   ├── eval/                    # Routing, tool-call, ASR and acoustic evaluation
-│   ├── modeling/                # Qwen3-ASR direct audio-to-tool model integration
-│   ├── robot/                   # Robot domain catalog, entities and normalization
-│   └── serving/                 # vLLM request/response helpers and benchmarks
+├── src/
+│   ├── slm/                     # Speech model, data, training, evaluation and serving
+│   │   ├── checkpoint/          # Standalone checkpoint export/audit
+│   │   ├── contracts/           # Output and tool-schema validation
+│   │   ├── data/                # Manifest preparation and audio transforms
+│   │   ├── data_gen/            # Text and speech data generation
+│   │   ├── engine/              # Training loop and hooks
+│   │   ├── eval/                # Routing, tool-call, ASR and acoustic evaluation
+│   │   ├── modeling/            # Qwen3-ASR direct audio-to-tool integration
+│   │   ├── robot/               # Robot catalog, entities and normalization
+│   │   └── serving/             # vLLM request/response helpers and benchmarks
+│   ├── harness/                 # Placeholder: future conversation/agent harness
+│   └── execute/                 # Placeholder: future robot execution layer
 └── tests/                       # Deterministic unit and contract tests
 ```
 

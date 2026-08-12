@@ -6,13 +6,13 @@ module with tests, rather than by copying the entire working tree.
 
 | Source in `stc` | Destination | Plan |
 | --- | --- | --- |
-| `src/modeling/command_asr.py` | `src/robot_speech_to_action/modeling/` | Reuse Qwen3-ASR audio-to-tool integration; remove car naming |
-| `src/engine/` | `src/robot_speech_to_action/engine/` | Reuse trainer and hooks after isolating generic dependencies |
-| `src/data/` | `src/robot_speech_to_action/data/` | Reuse manifest loading, audio transforms and samplers |
-| `src/data_gen/text/` | `src/robot_speech_to_action/data_gen/text/` | Reuse balanced/diverse generation with robot prompts and schemas |
-| `src/data_gen/speech/` | `src/robot_speech_to_action/data_gen/speech/` | Reuse TTS and augmentation pipelines |
+| `src/modeling/command_asr.py` | `src/slm/modeling/` | Reuse Qwen3-ASR audio-to-tool integration; remove car naming |
+| `src/engine/` | `src/slm/engine/` | Reuse trainer and hooks after isolating generic dependencies |
+| `src/data/` | `src/slm/data/` | Reuse manifest loading, audio transforms and samplers |
+| `src/data_gen/text/` | `src/slm/data_gen/text/` | Reuse balanced/diverse generation with robot prompts and schemas |
+| `src/data_gen/speech/` | `src/slm/data_gen/speech/` | Reuse TTS and augmentation pipelines |
 | `src/checkpoint/` and `tools/export_checkpoint.py` | `checkpoint/` and `scripts/` | Reuse standalone Hugging Face export and compatibility audit |
-| `src/eval/command/` | `src/robot_speech_to_action/eval/` | Generalize scoring to route/tool/argument/missing-slot metrics |
+| `src/eval/command/` | `src/slm/eval/` | Generalize scoring to route/tool/argument/missing-slot metrics |
 | `src/car/` | none | Do not copy; replace with a versioned robot contract |
 | car-generated data and checkpoints | none | Do not copy or mix into robot training |
 
