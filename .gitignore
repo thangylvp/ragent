@@ -1,0 +1,38 @@
+.venv/
+.venvs/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Model artifacts and experiment outputs
+checkpoints/
+outputs/
+wandb/
+*.safetensors
+*.pt
+*.pth
+*.gguf
+
+# Raw, generated, and potentially private audio stay outside Git.
+data/raw/
+data/generated/
+data/cache/
+data/audio/
+*.wav
+*.flac
+*.mp3
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+hf_token*
+
+# Editors and operating systems
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
