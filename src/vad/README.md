@@ -11,9 +11,15 @@ consume the same `VadEngine` interface and endpointing configuration.
 vad/
 ├── base.py          # Implemented: VadEngine protocol and event types
 ├── energy.py        # Implemented: adaptive energy baseline + segmenter
+├── backends/        # Implemented: common offline adapters for five runtimes
 ├── stream.py        # Planned: transport validation/resampling boundary
 └── metrics.py       # Planned: corpus-level segmentation metrics
 ```
+
+The adapters cover FireRedVAD (PyTorch), OmniVAD-Kit (the FireRed model on
+ncnn), Silero VAD, WebRTC VAD and the energy baseline. They normalize a WAV
+file into timestamped `VadSegment` values for component comparison; they do
+not replace the streaming `VadEngine` contract used by the eventual robot.
 
 ## Stream contract
 
@@ -47,3 +53,8 @@ Report false activations per hour, missed-speech rate, clipped onset/offset,
 endpoint delay, rejected-short-segment rate, maximum-duration cuts and segment
 purity. Test silence, far-field speech, accents, fans, music/TV, robot motors,
 motion, TTS playback and speech immediately after TTS.
+
+The current isolated robot clips contain speech in every acoustic category,
+so the initial benchmark reports speech hit rate, detected-audio ratio and
+runtime. It does not claim false-alarm or endpoint accuracy. See
+[`../../configs/vad/README.md`](../../configs/vad/README.md).

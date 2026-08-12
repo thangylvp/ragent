@@ -16,7 +16,7 @@ not an agent and not an execution runtime.
 | Component | Owns |
 | --- | --- |
 | Speech-to-action SLM (`src/slm`) | Speech recognition, route selection, tool selection, argument extraction |
-| VAD (`src/vad`; energy baseline implemented) | Streaming speech detection, utterance buffering, endpointing and playback gating |
+| VAD (`src/vad`) | Streaming speech detection, utterance buffering, endpointing and playback gating |
 | Agent harness (`src/harness`, placeholder) | Turn orchestration, conversation history, missing-field detection, follow-up questions, cloud forwarding, response/TTS loop |
 | Execution layer (`src/execute`, placeholder) | Schema validation, robot state, preconditions, safety policy, action execution and result reporting |
 | End-to-end web demo (`demo`, placeholder) | Streams microphone audio through the real component boundaries and visualizes routing, follow-up, execution and latency |
@@ -32,10 +32,15 @@ See [docs/architecture.md](docs/architecture.md) for the data flow and
 
 ## Current status
 
-The repository is an architecture scaffold with a tested, dependency-free VAD
-baseline. It deliberately does not define the production robot tool catalog
-yet. The catalog should be agreed with the agent harness and execution layer
-before data generation begins.
+The reusable Qwen3-ASR model wrapper, vendored audio backend and Qwen3 tool-call
+codec have been migrated from `stc` into `src/slm/modeling`. Robot training,
+data generation and the production tool catalog remain deferred until that
+catalog is agreed.
+
+VAD can now be compared independently through adapters for FireRedVAD,
+OmniVAD-Kit, Silero VAD, WebRTC VAD and the dependency-free energy baseline.
+The harness, execution layer and demo remain design placeholders; no
+conversation-loop behavior is assumed by these component implementations.
 
 ## Repository layout
 
@@ -58,7 +63,7 @@ robot-speech-to-action/
 │   │   ├── modeling/            # Qwen3-ASR direct audio-to-tool integration
 │   │   ├── robot/               # Robot catalog, entities and normalization
 │   │   └── serving/             # vLLM request/response helpers and benchmarks
-│   ├── vad/                     # Streaming VAD and endpointing
+│   ├── vad/                     # Streaming VAD, optional backend adapters and endpointing
 │   │   └── eval/                # Independent VAD evaluation
 │   ├── harness/                 # Conversation loop
 │   │   └── eval/                # Independent harness evaluation
@@ -72,6 +77,11 @@ Run the current CPU-only VAD tests with:
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests/vad -p 'test_*.py' -v
 ```
+
+See [configs/vad/README.md](configs/vad/README.md) for reproducible component
+benchmark commands, [the initial VAD result](docs/vad-benchmark-2026-08-12.md),
+and [src/slm/modeling/ORIGIN.md](src/slm/modeling/ORIGIN.md) for the exact SLM
+migration boundary.
 
 ## References
 
