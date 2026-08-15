@@ -21,6 +21,17 @@ from .base import VadEvent, VadEventKind, VadState
 from .energy import EnergyVad
 
 
+# Production-oriented defaults for the FireRed streaming acoustic model. Keep
+# these identical between the ncnn and PyTorch runtimes so backend comparisons
+# measure the runtime rather than different endpoint policies.
+FIRERED_STREAM_THRESHOLD = 0.65
+FIRERED_STREAM_SMOOTH_FRAMES = 5
+FIRERED_STREAM_PAD_START_FRAMES = 8
+FIRERED_STREAM_MIN_SPEECH_FRAMES = 15
+FIRERED_STREAM_MAX_SPEECH_FRAMES = 2_000
+FIRERED_STREAM_MIN_SILENCE_FRAMES = 30
+
+
 @dataclass(frozen=True, slots=True)
 class LiveVadUpdate:
     state: VadState
@@ -300,12 +311,12 @@ class _OmniModel:
 
         self.np = np
         self.model = OmniStreamVAD(
-            threshold=0.5,
-            smooth_window_size=5,
-            pad_start_frame=5,
-            min_speech_frame=8,
-            max_speech_frame=2000,
-            min_silence_frame=20,
+            threshold=FIRERED_STREAM_THRESHOLD,
+            smooth_window_size=FIRERED_STREAM_SMOOTH_FRAMES,
+            pad_start_frame=FIRERED_STREAM_PAD_START_FRAMES,
+            min_speech_frame=FIRERED_STREAM_MIN_SPEECH_FRAMES,
+            max_speech_frame=FIRERED_STREAM_MAX_SPEECH_FRAMES,
+            min_silence_frame=FIRERED_STREAM_MIN_SILENCE_FRAMES,
         )
 
     def process(self, pcm16le: bytes):
@@ -326,12 +337,12 @@ class _FireRedModel:
             str(model_dir),
             FireRedStreamVadConfig(
                 use_gpu=False,
-                speech_threshold=0.5,
-                smooth_window_size=5,
-                pad_start_frame=5,
-                min_speech_frame=8,
-                max_speech_frame=2000,
-                min_silence_frame=20,
+                speech_threshold=FIRERED_STREAM_THRESHOLD,
+                smooth_window_size=FIRERED_STREAM_SMOOTH_FRAMES,
+                pad_start_frame=FIRERED_STREAM_PAD_START_FRAMES,
+                min_speech_frame=FIRERED_STREAM_MIN_SPEECH_FRAMES,
+                max_speech_frame=FIRERED_STREAM_MAX_SPEECH_FRAMES,
+                min_silence_frame=FIRERED_STREAM_MIN_SILENCE_FRAMES,
             ),
         )
 

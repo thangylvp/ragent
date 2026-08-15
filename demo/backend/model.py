@@ -1,17 +1,14 @@
-"""Car CommandASR inference adapters used after VAD finalizes an utterance."""
+"""Standalone STCC vLLM adapter used after VAD finalizes an utterance."""
 
 from __future__ import annotations
 
 import base64
 import json
-import threading
 import time
 from pathlib import Path
 from typing import Protocol
 
-from slm.modeling.qwen3_tool_calls import parse, render_tool_calls
-
-_AUDIO_BLOCK = "<|audio_start|><|audio_pad|><|audio_end|>"
+from harness.tool_calls import render_tool_calls
 
 
 def load_tools(model_dir: str | Path) -> list[dict]:
@@ -78,7 +75,16 @@ class DisabledModel:
         return {"kind": "disabled", "ready": True}
 
     def infer(self, wav_path: str | Path, tools: list[dict]) -> dict:
-        return _result("", [], 0.0, timings={"to_last_token_ms": 0.0})
+        return _result(
+            "",
+            [],
+            0.0,
+            timings={
+                "request_to_first_token_ms": 0.0,
+                "request_to_last_token_ms": 0.0,
+                "to_last_token_ms": 0.0,
+            },
+        )
 
 
 class VllmModel:
@@ -131,36 +137,86 @@ class VllmModel:
             "temperature": 0,
             "max_tokens": self.settings.max_new_tokens,
             "chat_template_kwargs": {"enable_thinking": False},
+            "stream": True,
+            "stream_options": {"include_usage": True},
         }
         started = time.perf_counter()
         try:
-            response = self.client.post(
-                f"{self.settings.vllm_base_url}/chat/completions", json=payload
-            )
-            response.raise_for_status()
-            body = response.json()
-            message = body["choices"][0]["message"]
+            content_parts: list[str] = []
+            streamed_calls: dict[int, dict[str, str]] = {}
+            first_token_ms: float | None = None
+            last_token_ms: float | None = None
+            output_tokens = None
+            with self.client.stream(
+                "POST",
+                f"{self.settings.vllm_base_url}/chat/completions",
+                json=payload,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    body = json.loads(data)
+                    usage = body.get("usage") or {}
+                    if usage.get("completion_tokens") is not None:
+                        output_tokens = usage["completion_tokens"]
+                    choices = body.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta") or {}
+                    meaningful = False
+                    content = delta.get("content")
+                    if isinstance(content, str) and content:
+                        content_parts.append(content)
+                        meaningful = True
+                    for item in delta.get("tool_calls") or []:
+                        index = int(item.get("index", 0))
+                        target = streamed_calls.setdefault(
+                            index,
+                            {"name": "", "arguments": ""},
+                        )
+                        function = item.get("function") or {}
+                        name_fragment = function.get("name") or ""
+                        argument_fragment = function.get("arguments") or ""
+                        target["name"] += name_fragment
+                        target["arguments"] += argument_fragment
+                        meaningful = meaningful or bool(name_fragment or argument_fragment)
+                    if meaningful:
+                        elapsed = (time.perf_counter() - started) * 1000
+                        if first_token_ms is None:
+                            first_token_ms = elapsed
+                        last_token_ms = elapsed
+
             calls = []
-            for item in message.get("tool_calls") or []:
-                function = item.get("function") or {}
-                arguments = function.get("arguments") or {}
-                if isinstance(arguments, str):
-                    arguments = json.loads(arguments)
-                calls.append({"name": function["name"], "arguments": arguments})
-            raw = render_tool_calls(calls) if calls else (message.get("content") or "")
+            for index in sorted(streamed_calls):
+                item = streamed_calls[index]
+                arguments_text = item["arguments"] or "{}"
+                try:
+                    arguments = json.loads(arguments_text)
+                except json.JSONDecodeError:
+                    arguments = {"_raw": arguments_text}
+                calls.append({"name": item["name"], "arguments": arguments})
+            raw = render_tool_calls(calls) if calls else "".join(content_parts)
             latency_ms = (time.perf_counter() - started) * 1000
+            first_token_ms = first_token_ms if first_token_ms is not None else latency_ms
+            last_token_ms = last_token_ms if last_token_ms is not None else latency_ms
             self._last_latency_ms = latency_ms
             self._ready = True
             self._error = None
-            usage = body.get("usage") or {}
             return _result(
                 raw,
                 calls,
                 latency_ms,
-                usage.get("completion_tokens"),
+                output_tokens,
                 timings={
-                    "remote_request_to_last_token_ms": round(latency_ms, 3),
-                    "to_last_token_ms": round(latency_ms, 3),
+                    "request_to_first_token_ms": round(first_token_ms, 3),
+                    "request_to_last_token_ms": round(last_token_ms, 3),
+                    "first_to_last_token_ms": round(last_token_ms - first_token_ms, 3),
+                    "adapter_total_ms": round(latency_ms, 3),
+                    "to_last_token_ms": round(last_token_ms, 3),
                 },
             )
         except Exception as exc:
@@ -180,194 +236,10 @@ class VllmModel:
         }
 
 
-class LocalCommandAsrModel:
-    def __init__(self, settings):
-        self.settings = settings
-        self._lock = threading.Lock()
-        self._model = None
-        self._tokenizer = None
-        self._processor = None
-        self._torch = None
-        self._device: str | None = None
-        self._eos_token_id: int | None = None
-        self._error: str | None = None
-        self._last_latency_ms: float | None = None
-        if settings.eager_model:
-            self._load()
-
-    def _load(self) -> None:
-        if self._model is not None:
-            return
-        import torch
-
-        from slm.modeling.command_asr import CommandASR
-        from slm.modeling.qwen3_tool_calls import assistant_eos_token_id
-
-        device = self.settings.device
-        if device == "auto":
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        if device == "cpu" and not self.settings.allow_cpu_model:
-            raise RuntimeError(
-                "CUDA is unavailable. Set WEBTEST_ALLOW_CPU_MODEL=1 to permit very slow CPU "
-                "generation, or use WEBTEST_MODEL_MODE=vllm."
-            )
-        dtype = getattr(torch, self.settings.dtype)
-        model, tokenizer, processor = CommandASR._load_dir(
-            self.settings.model_dir, dtype
-        )
-        model.eval().to(device)
-        self._model = model
-        self._tokenizer = tokenizer
-        self._processor = processor
-        self._torch = torch
-        self._device = device
-        self._eos_token_id = assistant_eos_token_id(tokenizer)
-
-    def infer(self, wav_path: str | Path, tools: list[dict]) -> dict:
-        with self._lock:
-            adapter_started = time.perf_counter()
-            try:
-                load_started = time.perf_counter()
-                self._load()
-                load_ms = (time.perf_counter() - load_started) * 1000
-                result = self._infer_loaded(wav_path, tools)
-                timings = result["timings"]
-                timings["load_ms"] = round(load_ms, 3)
-                timings["adapter_total_ms"] = round(
-                    (time.perf_counter() - adapter_started) * 1000,
-                    3,
-                )
-                timings["to_last_token_ms"] = round(
-                    load_ms + timings["loaded_to_last_token_ms"],
-                    3,
-                )
-                return result
-            except Exception as exc:
-                self._error = f"{type(exc).__name__}: {exc}"
-                raise
-
-    def _infer_loaded(self, wav_path: str | Path, tools: list[dict]) -> dict:
-        import soundfile as sf
-
-        assert self._model is not None
-        assert self._eos_token_id is not None
-        torch = self._torch
-        tokenizer = self._tokenizer
-        loaded_started = time.perf_counter()
-        audio_started = time.perf_counter()
-        audio, sample_rate = sf.read(str(wav_path), dtype="float32", always_2d=False)
-        audio_decode_ms = (time.perf_counter() - audio_started) * 1000
-        if sample_rate != 16_000 or audio.ndim != 1:
-            raise ValueError("captured model audio must be mono 16 kHz")
-        prompt_started = time.perf_counter()
-        prompt = tokenizer.apply_chat_template(
-            [{"role": "user", "content": _AUDIO_BLOCK}],
-            tools=tools,
-            add_generation_prompt=True,
-            tokenize=False,
-            enable_thinking=False,
-        )
-        prompt_ms = (time.perf_counter() - prompt_started) * 1000
-        feature_started = time.perf_counter()
-        encoded = self._processor(
-            text=prompt,
-            audio=audio,
-            sampling_rate=16_000,
-            return_tensors="pt",
-        )
-        feature_extraction_ms = (time.perf_counter() - feature_started) * 1000
-        device = self._device
-        transfer_started = time.perf_counter()
-        input_ids = encoded["input_ids"].to(device)
-        features = encoded["input_features"].to(device).to(
-            self._model.thinker.audio_tower.proj2.weight.dtype
-        )
-        attention_mask = encoded["attention_mask"].to(device)
-        feature_attention_mask = encoded["feature_attention_mask"].to(device)
-        if device.startswith("cuda"):
-            torch.cuda.synchronize()
-        transfer_ms = (time.perf_counter() - transfer_started) * 1000
-        eos = self._eos_token_id
-        generation_started = time.perf_counter()
-
-        class _FirstTokenTimer:
-            def __init__(self):
-                self.elapsed_ms: float | None = None
-
-            def __call__(self, current_input_ids, scores):
-                if self.elapsed_ms is None:
-                    if device.startswith("cuda"):
-                        torch.cuda.synchronize()
-                    self.elapsed_ms = (time.perf_counter() - generation_started) * 1000
-                return scores
-
-        first_token_timer = _FirstTokenTimer()
-        with torch.no_grad():
-            output = self._model.thinker.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                input_features=features,
-                feature_attention_mask=feature_attention_mask,
-                max_new_tokens=self.settings.max_new_tokens,
-                do_sample=False,
-                eos_token_id=eos,
-                pad_token_id=(tokenizer.pad_token_id or eos),
-                logits_processor=[first_token_timer],
-            )
-        if device.startswith("cuda"):
-            torch.cuda.synchronize()
-        generation_ms = (time.perf_counter() - generation_started) * 1000
-        first_token_ms = first_token_timer.elapsed_ms
-        loaded_to_last_token_ms = (time.perf_counter() - loaded_started) * 1000
-        generated = output[0][input_ids.shape[1] :]
-        decode_started = time.perf_counter()
-        raw = tokenizer.decode(generated, skip_special_tokens=True)
-        calls = parse(raw)
-        decode_parse_ms = (time.perf_counter() - decode_started) * 1000
-        loaded_total_ms = (time.perf_counter() - loaded_started) * 1000
-        self._last_latency_ms = generation_ms
-        self._error = None
-        return _result(
-            raw,
-            calls,
-            generation_ms,
-            int(generated.numel()),
-            timings={
-                "audio_decode_ms": round(audio_decode_ms, 3),
-                "prompt_render_ms": round(prompt_ms, 3),
-                "feature_extraction_ms": round(feature_extraction_ms, 3),
-                "host_to_device_ms": round(transfer_ms, 3),
-                "generation_to_first_token_ms": round(first_token_ms, 3)
-                if first_token_ms is not None
-                else None,
-                "first_to_last_token_ms": round(generation_ms - first_token_ms, 3)
-                if first_token_ms is not None
-                else None,
-                "generation_to_last_token_ms": round(generation_ms, 3),
-                "decode_parse_ms": round(decode_parse_ms, 3),
-                "loaded_to_last_token_ms": round(loaded_to_last_token_ms, 3),
-                "loaded_total_ms": round(loaded_total_ms, 3),
-            },
-        )
-
-    @property
-    def info(self) -> dict:
-        return {
-            "kind": "local",
-            "ready": self._model is not None,
-            "model_dir": self.settings.model_dir,
-            "device": self._device or self.settings.device,
-            "latency_ms": self._last_latency_ms,
-            "error": self._error,
-        }
-
-
 def build_model(settings) -> SpeechModel:
     mode = settings.model_mode.strip().lower()
-    if mode == "local":
-        return LocalCommandAsrModel(settings)
     if mode == "vllm":
         return VllmModel(settings)
     if mode == "disabled":
         return DisabledModel()
-    raise ValueError("WEBTEST_MODEL_MODE must be local, vllm, or disabled")
+    raise ValueError("WEBTEST_MODEL_MODE must be vllm or disabled")

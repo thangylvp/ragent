@@ -36,5 +36,6 @@ hf_token*
 .DS_Store
 *.swp
 *.swo
+.~lock.*#
 .vscode/
 .idea/

@@ -1,107 +1,128 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VAD → Car STC Webtest</title>
+  <title>RAGENT · Voice-to-Action Demo</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <p class="eyebrow">COMPONENT WEBTEST · VERSION 0.1</p>
-      <h1>Live VAD <span>→</span> Car Speech-to-Command</h1>
-      <p class="subtitle">Test automatic utterance cutting before the existing 33-tool STC model. Calls are displayed, never executed.</p>
+    <a class="brand" href="/" aria-label="RAGENT home">
+      <span class="brand-mark">R</span>
+      <span><strong>RAGENT</strong><small>VOICE → ACTION</small></span>
+    </a>
+    <div class="system-badges">
+      <span id="modelBadge" class="pill"><i></i><b>SLM</b> connecting</span>
+      <span id="cloudBadge" class="pill"><i></i><b>Cloud</b> connecting</span>
+      <span class="pill ready"><i></i><b>Hardware</b> simulated</span>
     </div>
-    <div id="modelBadge" class="badge"><i></i><span>Connecting…</span></div>
   </header>
 
-  <main>
-    <section class="card listen-card">
-      <div class="section-head">
+  <main class="workspace">
+    <section class="conversation-panel">
+      <div class="panel-heading">
         <div>
-          <p class="step">01 · LISTEN</p>
-          <h2>Voice activity detection</h2>
+          <p class="eyebrow">LIVE DEMO</p>
+          <h1>Trợ lý giọng nói</h1>
+          <p>Trò chuyện tự nhiên hoặc điều khiển thiết bị bằng tiếng Việt.</p>
         </div>
-        <span id="vadState" class="state idle">IDLE</span>
+        <button id="newConversation" class="icon-button" title="Bắt đầu lại">↻</button>
       </div>
 
-      <div class="controls">
-        <label>
-          <span>VAD backend</span>
-          <select id="backend"></select>
-        </label>
-        <button id="start" class="primary">Start listening</button>
-        <button id="stop" class="secondary" disabled>Stop & discard</button>
+      <div id="conversation" class="conversation" aria-live="polite">
+        <div class="welcome">
+          <span class="welcome-icon">✦</span>
+          <h2>Xin chào!</h2>
+          <p>Bấm “Bắt đầu”, rồi thử nói “Mở cửa sổ bên lái” hoặc hỏi một câu bất kỳ.</p>
+          <div class="suggestions">
+            <button data-example="tool">“Bật điều hòa”</button>
+            <button data-example="chat">“Hôm nay là thứ mấy?”</button>
+          </div>
+        </div>
       </div>
 
-      <div class="meter-wrap">
-        <div class="meter-label"><span>Microphone level</span><strong id="levelText">−120 dBFS</strong></div>
-        <div class="meter"><i id="levelBar"></i></div>
-      </div>
-
-      <div class="metrics">
-        <div><span>Stream audio</span><strong id="audioTime">0.00 s</strong></div>
-        <div><span>Speech confidence</span><strong id="confidence">—</strong></div>
-        <div><span>VAD frame cost</span><strong id="frameCost">—</strong></div>
-        <div><span>Captured utterance</span><strong id="utteranceTime">—</strong></div>
-      </div>
-
-      <p id="status" class="status">Choose a VAD, then start listening. Speech is sent only after server-side endpointing.</p>
-      <audio id="capture" controls hidden></audio>
-    </section>
-
-    <section class="card result-card">
-      <div class="section-head">
-        <div>
-          <p class="step">02 · PARSE</p>
-          <h2>Car model result</h2>
+      <div class="composer">
+        <div class="listen-state">
+          <span id="listenOrb" class="listen-orb"><i></i></span>
+          <div><strong id="listenTitle">Sẵn sàng</strong><small id="status">Bấm Bắt đầu để mở micro</small></div>
+          <span id="levelText" class="dbfs">−120 dBFS</span>
         </div>
-        <span id="route" class="state neutral">WAITING</span>
-      </div>
-
-      <div id="emptyResult" class="empty">A completed VAD segment will be sent to the ASR-based car model with its original tool catalog.</div>
-      <div id="result" hidden>
-        <div id="transcriptBox" class="transcript" hidden>
-          <span>NON-TOOL TRANSCRIPT</span>
-          <p id="transcript"></p>
+        <div class="level-track"><i id="levelBar"></i></div>
+        <div class="composer-actions">
+          <button id="start" class="primary"><span>●</span> Bắt đầu</button>
+          <button id="stop" class="secondary" disabled>Dừng</button>
+          <button id="settingsToggle" class="secondary push-right">Cài đặt âm thanh</button>
         </div>
-        <div id="calls" class="calls"></div>
-        <div class="metrics compact">
-          <div><span>Finalized → result</span><strong id="e2eLatency">—</strong></div>
-          <div><span>Model latency</span><strong id="modelLatency">—</strong></div>
-          <div><span>Output tokens</span><strong id="outputTokens">—</strong></div>
+        <div id="audioSettings" class="audio-settings" hidden>
+          <label><span>Speech enhancement</span><select id="enhancer"></select></label>
+          <label><span>Voice activity detection</span><select id="backend"></select></label>
+          <p>Micro: echo cancellation bật; noise suppression và auto gain do pipeline xử lý.</p>
         </div>
-        <div class="breakdown">
-          <h3>Component timing</h3>
-          <dl id="timings"></dl>
-        </div>
-        <details>
-          <summary>Raw model output</summary>
-          <pre id="raw"></pre>
-        </details>
+        <p id="voiceDisclosure" class="disclosure">Giọng nói phản hồi được tạo bởi AI.</p>
       </div>
     </section>
 
-    <section class="card trace-card">
-      <div class="section-head">
-        <div>
-          <p class="step">03 · INSPECT</p>
-          <h2>Event trace</h2>
-        </div>
-        <button id="clearTrace" class="text-button">Clear</button>
+    <aside class="hardware-panel">
+      <div class="panel-heading compact">
+        <div><p class="eyebrow">DIGITAL TWIN</p><h2>Trạng thái phần cứng</h2></div>
+        <span id="hardwareMode" class="mode ready"><i></i>SẴN SÀNG</span>
       </div>
-      <ol id="trace" class="trace"></ol>
-    </section>
 
-    <section class="card catalog-card">
-      <details>
-        <summary>Bundled STC tool catalog (<span id="toolCount">0</span>)</summary>
-        <div id="tools" class="tools"></div>
+      <div class="device-hero">
+        <div class="vehicle">
+          <div class="windshield"></div><div class="cabin-glow"></div>
+          <span class="wheel left"></span><span class="wheel right"></span>
+        </div>
+        <div class="battery"><span>Pin mô phỏng</span><strong id="battery">82%</strong><i><b id="batteryBar"></b></i></div>
+      </div>
+
+      <div class="hardware-grid">
+        <article class="hardware-card">
+          <div class="card-title"><span class="card-icon climate">◌</span><div><small>CLIMATE</small><strong id="climatePower">Đang tắt</strong></div></div>
+          <div class="stat-row"><span>Nhiệt độ</span><strong id="temperature">22°C</strong></div>
+          <div class="stat-row"><span>Tốc độ quạt</span><strong id="fan">0 / 7</strong></div>
+        </article>
+        <article class="hardware-card">
+          <div class="card-title"><span class="card-icon media">♪</span><div><small>MEDIA</small><strong id="playback">Đã dừng</strong></div></div>
+          <div class="stat-row"><span>Nguồn</span><strong id="mediaSource">Bluetooth</strong></div>
+          <div class="stat-row"><span>Âm lượng</span><strong id="volume">30%</strong></div>
+        </article>
+        <article class="hardware-card">
+          <div class="card-title"><span class="card-icon access">⌁</span><div><small>ACCESS</small><strong id="trunk">Cốp đóng</strong></div></div>
+          <div class="stat-row"><span>Cửa sổ lái</span><strong id="driverWindow">Đóng</strong></div>
+          <div class="stat-row"><span>Cửa sổ trời</span><strong id="sunroof">Đóng</strong></div>
+        </article>
+        <article class="hardware-card">
+          <div class="card-title"><span class="card-icon drive">⌁</span><div><small>DRIVE</small><strong id="driveMode">Normal</strong></div></div>
+          <div class="stat-row"><span>Vận hành</span><strong id="vehicleState">Đã dừng</strong></div>
+          <div class="stat-row"><span>Đèn viền</span><strong id="ambient">Tắt</strong></div>
+          <div class="stat-row"><span>Kết nối</span><strong id="connectivity">Bluetooth</strong></div>
+        </article>
+      </div>
+
+      <section class="activity">
+        <div class="section-line"><h3>Hoạt động gần đây</h3><span id="actionCount">0 lệnh</span></div>
+        <ol id="hardwareEvents"><li><i></i><span>Hệ thống đã sẵn sàng</span></li></ol>
+      </section>
+
+      <section class="simulation-controls">
+        <div><strong>Điều khiển mô phỏng</strong><small>Demo điều kiện bận và điều kiện an toàn</small></div>
+        <label class="switch"><input id="vehicleToggle" type="checkbox"><span></span> Xe chạy</label>
+        <label class="switch"><input id="busyToggle" type="checkbox"><span></span> Bận</label>
+        <button id="resetHardware" class="text-button">Đặt lại</button>
+      </section>
+
+      <details class="technical">
+        <summary>Âm thanh và event trace</summary>
+        <div class="audio-compare">
+          <label><span>Trước denoise</span><audio id="beforeCapture" controls></audio></label>
+          <label><span>Đầu vào SLM</span><audio id="capture" controls></audio></label>
+        </div>
+        <ol id="trace" class="trace"></ol>
       </details>
-    </section>
+    </aside>
   </main>
-
   <script src="/static/app.js"></script>
 </body>
 </html>

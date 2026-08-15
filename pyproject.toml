@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "robot-speech-to-action"
 version = "0.1.0"
-description = "Direct Vietnamese robot speech routing and tool-call parsing"
+description = "Reproducible Vietnamese voice-agent demo and Jetson benchmark"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []

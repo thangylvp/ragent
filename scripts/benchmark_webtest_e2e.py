@@ -34,6 +34,7 @@ def parse_args() -> argparse.Namespace:
         help="last speech point measured from the start of the source WAV",
     )
     parser.add_argument("--backend", default="omnivad")
+    parser.add_argument("--enhancer", default="fastenhancer_s")
     parser.add_argument("--runs", type=int, default=6)
     parser.add_argument("--prefix-ms", type=int, default=500)
     parser.add_argument("--suffix-ms", type=int, default=1000)
@@ -67,6 +68,7 @@ def percentile(values: list[float], fraction: float) -> float:
 def aggregate(runs: list[dict]) -> dict:
     keys = [
         "speech_end_to_vad_ms",
+        "speech_end_to_first_token_ms",
         "speech_end_to_last_token_ms",
         "speech_end_to_result_ms",
     ]
@@ -86,6 +88,13 @@ def mean_nested(runs: list[dict], section: str, key: str) -> float:
     return round(statistics.mean(item[section][key] for item in runs), 3)
 
 
+def optional_mean_nested(runs: list[dict], section: str, key: str) -> float | None:
+    values = [item[section].get(key) for item in runs]
+    if any(value is None for value in values):
+        return None
+    return round(statistics.mean(values), 3)
+
+
 def one_run(client, pcm: bytes, args: argparse.Namespace, run_number: int) -> dict:
     packet_samples = 16_000 * args.packet_ms // 1000
     packet_bytes = packet_samples * 2
@@ -101,6 +110,7 @@ def one_run(client, pcm: bytes, args: argparse.Namespace, run_number: int) -> di
             {
                 "event": "start_stream",
                 "backend": args.backend,
+                "enhancer": args.enhancer,
                 "sample_rate": 16_000,
                 "channels": 1,
                 "encoding": "pcm16le",
@@ -160,8 +170,10 @@ def one_run(client, pcm: bytes, args: argparse.Namespace, run_number: int) -> di
     endpoint_delay_ms = (
         finalized["vad_finalized_timestamp_ms"] - speech_end_wall_ms
     )
-    to_last_token_ms = endpoint_delay_ms + model_result["last_token_from_vad_ms"]
-    to_result_ms = endpoint_delay_ms + model_result["end_to_end_from_vad_ms"]
+    event_timing = model_result["timings"]
+    to_first_token_ms = endpoint_delay_ms + event_timing["audio_to_first_llm_token_ms"]
+    to_last_token_ms = endpoint_delay_ms + event_timing["audio_to_last_llm_token_ms"]
+    to_result_ms = endpoint_delay_ms + event_timing["audio_to_model_result_ms"]
     return {
         "run": run_number,
         "cold_start": run_number == 1,
@@ -171,6 +183,7 @@ def one_run(client, pcm: bytes, args: argparse.Namespace, run_number: int) -> di
         "captured_audio_ms": finalized["duration_ms"],
         "vad_endpoint_audio_ms": finalized["endpoint_audio_ms"],
         "speech_end_to_vad_ms": round(endpoint_delay_ms, 3),
+        "speech_end_to_first_token_ms": round(to_first_token_ms, 3),
         "speech_end_to_last_token_ms": round(to_last_token_ms, 3),
         "speech_end_to_result_ms": round(to_result_ms, 3),
         "vad": {
@@ -179,8 +192,15 @@ def one_run(client, pcm: bytes, args: argparse.Namespace, run_number: int) -> di
             "compute_mean_frame_ms": finalized["vad_process_mean_ms"],
             "compute_max_frame_ms": finalized["vad_process_max_ms"],
         },
+        "enhancement": {
+            "frames": finalized["enhancement_frames_processed"],
+            "compute_total_ms": finalized["enhancement_compute_total_ms"],
+            "compute_mean_frame_ms": finalized["enhancement_compute_mean_ms"],
+            "compute_max_frame_ms": finalized["enhancement_compute_max_ms"],
+            "algorithmic_delay_ms": finalized["enhancement_algorithmic_delay_ms"],
+        },
         "post_vad": {
-            **model_result["component_timings"],
+            **event_timing,
             **model_timing,
         },
     }
@@ -190,8 +210,7 @@ def main() -> int:
     args = parse_args()
     if args.runs < 2:
         raise ValueError("use at least two runs to distinguish cold and warm latency")
-    os.environ.setdefault("WEBTEST_MODEL_MODE", "local")
-    os.environ.setdefault("WEBTEST_DEVICE", "cuda")
+    os.environ.setdefault("WEBTEST_MODEL_MODE", "vllm")
 
     from fastapi.testclient import TestClient
     from demo.backend.app import app
@@ -204,12 +223,12 @@ def main() -> int:
     client = TestClient(app)
     runs = [one_run(client, pcm, args, index + 1) for index in range(args.runs)]
     warm_runs = runs[1:]
-    warm_generation_ms = mean_nested(
+    warm_generation_ms = optional_mean_nested(
         warm_runs,
         "post_vad",
         "generation_to_last_token_ms",
     )
-    warm_first_to_last_ms = mean_nested(
+    warm_first_to_last_ms = optional_mean_nested(
         warm_runs,
         "post_vad",
         "first_to_last_token_ms",
@@ -221,6 +240,7 @@ def main() -> int:
         "source_duration_ms": round(duration_ms, 3),
         "speech_end_ms": args.speech_end_ms,
         "backend": args.backend,
+        "enhancer": args.enhancer,
         "packet_ms": args.packet_ms,
         "runs": runs,
         "cold": aggregate(runs[:1]),
@@ -228,26 +248,26 @@ def main() -> int:
         "warm_component_mean_ms": {
             "capture_write": mean_nested(warm_runs, "post_vad", "capture_write_ms"),
             "model_dispatch": mean_nested(warm_runs, "post_vad", "model_dispatch_ms"),
-            "audio_decode": mean_nested(warm_runs, "post_vad", "audio_decode_ms"),
-            "prompt_render": mean_nested(warm_runs, "post_vad", "prompt_render_ms"),
-            "feature_extraction": mean_nested(
+            "audio_decode": optional_mean_nested(warm_runs, "post_vad", "audio_decode_ms"),
+            "prompt_render": optional_mean_nested(warm_runs, "post_vad", "prompt_render_ms"),
+            "feature_extraction": optional_mean_nested(
                 warm_runs,
                 "post_vad",
                 "feature_extraction_ms",
             ),
-            "host_to_gpu": mean_nested(
+            "host_to_gpu": optional_mean_nested(
                 warm_runs,
                 "post_vad",
                 "host_to_device_ms",
             ),
-            "model_to_first_token": mean_nested(
+            "model_to_first_token": optional_mean_nested(
                 warm_runs,
                 "post_vad",
                 "generation_to_first_token_ms",
             ),
             "first_to_last_token": warm_first_to_last_ms,
             "model_to_last_token": warm_generation_ms,
-            "decode_and_parse_after_last_token": mean_nested(
+            "decode_and_parse_after_last_token": optional_mean_nested(
                 warm_runs,
                 "post_vad",
                 "decode_parse_ms",
@@ -265,7 +285,31 @@ def main() -> int:
                 "compute_mean_frame_ms",
             ),
         },
-        "warm_rates": {
+        "warm_enhancement_mean": {
+            "online_compute_total_ms": mean_nested(
+                warm_runs,
+                "enhancement",
+                "compute_total_ms",
+            ),
+            "compute_per_frame_ms": mean_nested(
+                warm_runs,
+                "enhancement",
+                "compute_mean_frame_ms",
+            ),
+            "algorithmic_delay_ms": mean_nested(
+                warm_runs,
+                "enhancement",
+                "algorithmic_delay_ms",
+            ),
+        },
+    }
+    report["warm_component_mean_ms"] = {
+        key: value
+        for key, value in report["warm_component_mean_ms"].items()
+        if value is not None
+    }
+    if warm_generation_ms and warm_first_to_last_ms:
+        report["warm_rates"] = {
             "effective_output_tokens_per_second": round(
                 output_tokens / warm_generation_ms * 1000,
                 3,
@@ -274,8 +318,7 @@ def main() -> int:
                 max(0.0, output_tokens - 1) / warm_first_to_last_ms * 1000,
                 3,
             ),
-        },
-    }
+        }
     rendered = json.dumps(report, indent=2, ensure_ascii=False)
     print(rendered)
     if args.output:

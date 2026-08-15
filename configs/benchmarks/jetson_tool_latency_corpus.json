@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "purpose": "Jetson full-system latency benchmark for the local tool-call path",
+  "audio_format": "mono 16 kHz PCM16 WAV",
+  "samples": [
+    {
+      "file": "01_1.39s_radio_source.wav",
+      "duration_seconds": 1.39,
+      "spoken_text": "Mở đài lên.",
+      "expected_call": {
+        "name": "select_media_source",
+        "arguments": {"source": "radio"}
+      }
+    },
+    {
+      "file": "02_2.00s_fog_lights.wav",
+      "duration_seconds": 2.0,
+      "spoken_text": "Bật đèn sương mù phía trước lên.",
+      "expected_call": {
+        "name": "set_fog_lights",
+        "arguments": {"state": "on", "position": "front"}
+      }
+    },
+    {
+      "file": "03_3.00s_seat_heating.wav",
+      "duration_seconds": 3.0,
+      "spoken_text": "Cho sưởi ghế tui lên mức 3... à nhầm, mức 2 thôi.",
+      "expected_call": {
+        "name": "set_seat_heating",
+        "arguments": {"seat": "driver", "level": 2}
+      }
+    },
+    {
+      "file": "04_4.00s_ambient_green.wav",
+      "duration_seconds": 4.0,
+      "spoken_text": "Bật đèn viền xanh lá lên, độ sáng 20... à nhầm, 12 thôi cho đỡ chói mắt.",
+      "expected_call": {
+        "name": "set_ambient_light",
+        "arguments": {"state": "on", "color": "green", "brightness": 12}
+      }
+    },
+    {
+      "file": "05_5.00s_ambient_rainbow.wav",
+      "duration_seconds": 5.0,
+      "spoken_text": "Làm ơn bật đèn viền khu vực phía trước, màu cầu vồng và độ sáng là 75% giúp tôi với ạ.",
+      "expected_call": {
+        "name": "set_ambient_light",
+        "arguments": {"state": "on", "color": "rainbow", "brightness": 75, "zone": "front"}
+      }
+    },
+    {
+      "file": "06_6.00s_ambient_rainbow.wav",
+      "duration_seconds": 6.0,
+      "spoken_text": "Chỉnh giùm tui cái đèn nội thất ở đằng trước qua màu bảy sắc cầu vồng, độ sáng bảy mươi lăm phần trăm nghen.",
+      "expected_call": {
+        "name": "set_ambient_light",
+        "arguments": {"state": "on", "color": "rainbow", "brightness": 75, "zone": "front"}
+      }
+    },
+    {
+      "file": "07_6.75s_next_station.wav",
+      "duration_seconds": 6.75,
+      "spoken_text": "Con chuyển giùm qua đài kế tiếp trên băng tần AM nghen. Cái đài mà tui lưu ở vị trí số 1 đó, tên là FM 99.9, tần số là 108 á.",
+      "expected_call": {
+        "name": "control_radio",
+        "arguments": {"action": "next_station", "band": "am", "frequency": 108, "station_name": "FM 99.9", "preset": 1}
+      }
+    },
+    {
+      "file": "08_7.44s_previous_station.wav",
+      "duration_seconds": 7.44,
+      "spoken_text": "Vui lòng chuyển về kênh radio liền trước trên băng tần DAB, cụ thể là đài FM 99.9, tần số 88 MHz, đã lưu ở kênh 10 ạ.",
+      "expected_call": {
+        "name": "control_radio",
+        "arguments": {"action": "previous_station", "band": "dab", "frequency": 88, "station_name": "FM 99.9", "preset": 10}
+      }
+    }
+  ]
+}

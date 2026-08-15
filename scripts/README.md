@@ -1,26 +1,26 @@
-# Command-line entry points
+# Command-line tools
 
-Scripts will remain thin wrappers around importable package code:
+This directory contains only demo, serving and performance tooling. Training
+and dataset-generation entry points are intentionally out of scope.
 
 ```text
 scripts/
-├── audit_robot_contract.py
-├── audit_recordings.py
-├── prepare_manifests.py
-├── generate_text.py
-├── generate_speech.py
-├── evaluate_vad.py            # Implemented: normalized per-backend JSON report
-├── compare_vad.py             # Implemented: Markdown comparison + port agreement
-├── train.py
-├── evaluate.py
-├── export_checkpoint.py
-├── test_vllm_audio.py
-├── benchmark_vllm.py
-├── benchmark_e2e.py
-└── benchmark_webtest_e2e.py   # Implemented: real-time speech-end→last-token timing
+├── smoke_test_vllm_audio.py        # One standalone-checkpoint audio request
+├── benchmark_webtest_e2e.py        # Laptop/local component timing
+├── benchmark_jetson_full_system.py # Repeated Jetson tool-call path
+├── benchmark_jetson_cloud_path.py  # Repeated Jetson non-tool/cloud path
+├── analyze_jetson_full_system.py   # Tool-call aggregates and resource summary
+├── analyze_jetson_cloud_path.py    # Non-tool aggregates
+├── benchmark_speech_enhancement.py # Enhancement + downstream call comparison
+├── evaluate_vad.py                 # Normalized per-backend VAD report
+├── compare_vad.py                  # VAD comparison and agreement report
+├── create_pcm16_variants.py        # Byte-unique benchmark WAV variants
+├── prewarm_demo_audio.py           # Fixed Vietnamese response cache
+├── create_jetson_benchmark_slides.py
+└── jetson/                          # vLLM/MPS/demo/measurement launchers
 ```
 
-The remaining training/data commands come only after the robot schema is
-frozen. `demo/run.sh` now launches the narrow VAD→car-STC component webtest.
-The full robot integration surface remains deferred until the harness contract
-is designed.
+Use the exact command order and environment variables in
+[`docs/jetson-reproduction.md`](../docs/jetson-reproduction.md). Runtime output
+is written below the ignored `outputs/` tree; raw or private audio is never
+committed.

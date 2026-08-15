@@ -1,11 +1,27 @@
 # VAD backends and benchmark settings
 
-FireRed and OmniVAD use identical settings: activation threshold `0.5`, 80 ms
-minimum speech, 200 ms minimum end silence and 50 ms onset padding. Silero is
-configured to the same approximate values. WebRTC uses its standard 30 ms
-frame/300 ms collector and the energy backend retains the repository's
-streaming baseline settings because their detector semantics are not directly
-equivalent.
+The initial component benchmark used activation threshold `0.5`, 80 ms minimum
+speech, 200 ms minimum end silence and 50 ms onset padding for FireRed and
+OmniVAD. Those historical settings remain part of the recorded benchmark and
+must not be confused with the current interactive defaults.
+
+The webtest now selects OmniVAD by default and uses the same tuned FireRed
+Stream-VAD policy for both the ncnn and PyTorch runtimes:
+
+| Setting | Frames | Time/value |
+| --- | ---: | ---: |
+| Activation threshold | - | `0.65` |
+| Probability smoothing | 5 | 50 ms |
+| Onset padding | 8 | 80 ms |
+| Minimum speech | 15 | 150 ms |
+| Maximum speech | 2,000 | 20 s |
+| End silence | 30 | 300 ms |
+
+The higher threshold and longer minimum speech reject short background noises.
+The 300 ms end-silence window tolerates brief pauses while adding 100 ms to the
+old endpoint policy. Silero uses its adapter defaults. WebRTC uses mode 2 and
+the energy backend retains the repository's streaming baseline settings because
+their detector semantics are not directly equivalent.
 
 | Backend | Acoustic model | Runtime | Environment |
 | --- | --- | --- | --- |

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "purpose": "Jetson full-system latency benchmark for non_tool through Gemini and laptop OmniVoice",
+  "audio_format": "mono 16 kHz PCM16 WAV",
+  "source": "Successive real-speech prefixes of the bundled non_tool_news.wav sample; durations are not silence padding.",
+  "samples": [
+    {"file": "01_1.000s_news.wav", "duration_seconds": 1.0, "expected_route": "non_tool"},
+    {"file": "02_3.000s_news.wav", "duration_seconds": 3.0, "expected_route": "non_tool"},
+    {"file": "03_5.000s_news.wav", "duration_seconds": 5.0, "expected_route": "non_tool"},
+    {"file": "04_7.000s_news.wav", "duration_seconds": 7.0, "expected_route": "non_tool"},
+    {"file": "05_7.500s_news.wav", "duration_seconds": 7.5, "expected_route": "non_tool"}
+  ]
+}

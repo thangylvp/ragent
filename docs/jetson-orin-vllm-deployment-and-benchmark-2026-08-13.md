@@ -1,5 +1,9 @@
 # Jetson AGX Orin vLLM deployment and benchmark — 2026-08-13
 
+> This document records the original measured machine and commands. For a
+> portable clean-machine setup, use the canonical
+> [Jetson reproduction guide](jetson-reproduction.md).
+
 This note records the tested deployment of the standalone car STCC checkpoint
 on the Jetson AGX Orin. The car model is used as a proxy for the future robot
 SLM because both use the same Qwen3-ASR direct audio-to-structured-call
